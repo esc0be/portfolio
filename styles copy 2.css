@@ -1,0 +1,205 @@
+    *
+    .crt-glitch-intensify {
+      animation-duration: 4s !important;
+    }
+    .crt-glitch-intensify::before,
+    .crt-glitch-intensify::after {
+      animation-duration: 2.2s, 2.5s !important;
+    }
+    *
+    
+/* Glitch effect for boot log lines */
+.boot-log-glitch {
+  margin: 1rem 0 1.4rem;
+  color: var(--fg-dim);
+  font-size: 0.93rem;
+  line-height: 1.5;
+  position: relative;
+}
+
+.boot-line {
+  display: block;
+  position: relative;
+  animation: boot-glitch 6.5s infinite alternate;
+  text-shadow: 0 0 3px rgba(255,255,255,0.25);
+}
+
+.boot-line:nth-child(odd)  { animation-delay: 0.7s; }
+.boot-line:nth-child(even) { animation-delay: 1.9s; }
+
+@keyframes boot-glitch {
+  0%, 5%, 11%, 17%, 93%, 100% {
+    transform: translateX(0);
+    opacity: 1;
+    text-shadow: 0 0 3px rgba(255,255,255,0.25);
+  }
+  3%   { transform: translateX(-1.3px); opacity: 0.89; text-shadow: -2px 0 #ff0044aa; }
+  8%   { transform: translateX(1.4px);  opacity: 0.91; text-shadow:  2px 0 #00aaffaa; }
+  14%  { transform: translateX(-0.8px); opacity: 0.90; text-shadow: -1px 0 #ff8800aa; }
+  94%  { transform: translateX(1px);    opacity: 0.88; text-shadow:  1.5px 0 #44ff00aa; }
+}
+
+/* Optional faint scanline just over the log */
+.boot-log-glitch::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0 1px,
+    rgba(255,255,255,0.06) 1px,
+    rgba(255,255,255,0.06) 2px
+  );
+  pointer-events: none;
+  opacity: 0.55;
+}
+/* ----------------------- */
+/* Smoother glitch header  */
+/* ----------------------- */
+
+.ascii-header {
+  animation: glitch-header 12s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.ascii-header::before {
+  animation:
+    rgb-split-before 8s ease-in-out infinite alternate,
+    glitch-shift-before 6s ease-in-out infinite;
+  opacity: 0.7;           /* lowered from ~0.9 */
+  text-shadow:
+    -1.2px 0 var(--glitch-red),
+     1.2px 0 var(--glitch-cyan),
+    -0.6px 0.6px var(--glitch-magenta);
+}
+
+.ascii-header::after {
+  animation:
+    rgb-split-after 9s ease-in-out infinite alternate-reverse,
+    glitch-shift-after 7s ease-in-out infinite;
+  opacity: 0.65;
+  text-shadow:
+     1.2px 0 var(--glitch-cyan),
+    -1.2px 0 var(--glitch-red),
+     0.6px -0.6px #ffff00;
+}
+
+@keyframes glitch-header {
+  0%, 100% { transform: translate(0); opacity: 1; }
+  25%      { transform: translate(0.6px, -0.6px); opacity: 0.97; }
+  50%      { transform: translate(-0.8px, 0.8px); opacity: 0.96; }
+  75%      { transform: translate(0.4px, -0.4px); opacity: 0.98; }
+}
+
+@keyframes rgb-split-before {
+  0%   { transform: translate(-0.8px, 0.5px); }
+  100% { transform: translate(0.8px, -0.5px); }
+}
+
+@keyframes rgb-split-after {
+  0%   { transform: translate(0.7px, -0.4px); }
+  100% { transform: translate(-0.7px, 0.4px); }
+}
+
+@keyframes glitch-shift-before,
+@keyframes glitch-shift-after {
+  0%, 100% { clip-path: inset(0 0 0 0); }
+  20%, 80% { clip-path: inset(0.5% 0 0.8% 0); }
+  40%, 60% { clip-path: inset(0.3% 0.4% 0.7% 0.2%); }
+}
+
+/* ----------------------- */
+/* Much subtler page tear  */
+/* ----------------------- */
+
+body.crt-effect .tear-layer {
+  opacity: 0;
+  animation: page-tear 38s ease-in-out infinite;
+  background: linear-gradient(
+    to bottom,
+    transparent 49.4%,
+    var(--glitch-red) 49.6%,
+    var(--glitch-cyan) 49.8%,
+    var(--glitch-magenta) 50%,
+    transparent 50.6%
+  );
+  background-size: 100% 600%;
+}
+
+@keyframes page-tear {
+  0%, 100%     { background-position: 0 0%; opacity: 0; }
+  15%, 35%, 55%, 75%, 95% {
+    background-position: 0 16.7%;
+    opacity: 0.12;           /* very low */
+  }
+  25%, 45%, 65%, 85% {
+    background-position: 0 33.3%;
+    opacity: 0.09;
+  }
+}
+
+/* ----------------------- */
+/* Smoother VHS tracking   */
+/* ----------------------- */
+
+body.crt-effect::after {
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0%,
+      var(--vhs-line) 0.05%,
+      transparent 0.10%,
+      transparent 0.35%,
+      var(--vhs-line) 0.40%,
+      transparent 0.45%,
+      transparent 1.0%
+    ),
+    linear-gradient(
+      45deg,
+      var(--vhs-noise) 25%,
+      transparent 25%,
+      transparent 50%,
+      var(--vhs-noise) 50%,
+      var(--vhs-noise) 75%,
+      transparent 75%,
+      transparent
+    );
+  background-size: 100% 220px, 5px 5px;
+  opacity: 0;
+  animation:
+    vhs-tracking-drift 42s linear infinite,
+    vhs-tracking-flicker 4.2s ease-in-out infinite,
+    vhs-tracking-opacity 28s ease-in-out infinite;
+}
+
+@keyframes vhs-tracking-drift {
+  0%   { background-position: 0 0, 0 0; }
+  100% { background-position: 0 -440px, 0 -10px; }
+}
+
+@keyframes vhs-tracking-flicker {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 0.55; }
+}
+
+@keyframes vhs-tracking-opacity {
+  0%, 100% { opacity: 0.22; }
+  20%, 80% { opacity: 0.38; }
+  40%, 60% { opacity: 0.30; }
+}
+
+/* ----------------------- */
+/* Very gentle burst       */
+/* ----------------------- */
+
+.glitch-burst {
+  animation: glitch-burst 0.9s ease-out forwards;
+}
+
+@keyframes glitch-burst {
+  0%   { transform: translate(0); opacity: 1; }
+  20%  { transform: translate(-1.2px, 1.2px); opacity: 0.94; }
+  40%  { transform: translate(1.4px, -1.4px); opacity: 0.96; }
+  60%  { transform: translate(-0.8px, 0.8px); opacity: 0.95; }
+  100% { transform: translate(0); opacity: 1; }
+}

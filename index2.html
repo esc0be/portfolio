@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en" class="terminal">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>esc0be — void terminal</title>
+  <style>
+    @font-face {
+      font-family: 'VCR OSD Mono';
+      src: url('https://cdn.jsdelivr.net/gh/404nn/VCR-OSD-Mono/VCR_OSD_MONO_1.001.ttf') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+    }
+
+    :root {
+      --bg: #000000;
+      --fg: #ffffff;
+      --fg-dim: #777777;
+      --prompt: #ffffff;
+      --highlight: #ffffff;
+      --error: #ff0044;
+      --scanline: rgba(255,255,255,0.12);
+      --glow: rgba(255,255,255,0.2); /* Reduced glow */
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: 'VCR OSD Mono', 'Courier New', monospace;
+      font-size: 16px;
+      line-height: 1.45;
+      overflow: hidden;
+    }
+
+   body {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      padding: 0.5rem 0.8rem 5rem; /* Reduced padding for raw feel */
+      max-width: 980px;
+      margin: 0 auto;
+      position: relative;
+    }
+
+    /* CRT scanlines - stronger for brutalism */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent 0,
+        transparent 2px,
+        var(--scanline) 2px,
+        var(--scanline) 4px
+      );
+      pointer-events: none;
+      z-index: 9998;
+      opacity: 0.8;
+    }
+
+    .boot {
+      color: var(--fg-dim);
+      font-size: 0.85rem; /* Slightly smaller, raw */
+      margin-bottom: 0.8rem;
+      white-space: pre-wrap;
+      animation: fadeIn 3s forwards; /* Faster fade */
+      opacity: 0;
+    }
+
+    canvas#bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      opacity: 0.25;
+    }
+
+    .boot-window {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.92);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .window {
+      width: 90%;
+      max-width: 520px;
+      border: 2px solid #444;
+      background: #000;
+      color: #fff;
+      font-size: 0.9rem;
+      box-shadow: 0 0 0 4px #000;
+      position: relative;
+    }
+
+    .titlebar {
+      background: #222;
+      padding: 0.3rem 0.6rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #444;
+    }
+
+    .close-btn {
+      width: 14px;
+      height: 14px;
+      background: #ff5f56;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .content {
+      padding: 0.8rem;
+      white-space: pre;
+      height: 220px;
+      overflow: hidden;
+    }
+
+    .blink { animation: blink 0.7s step-end infinite; }
+
+@keyframes fadeIn { to { opacity: 1; } }
+
+    /* Header container */
+    .header-container {
+      text-align: center;
+      margin: 0.5rem 0 1.5rem; /* Tight spacing */
+    }
+
+    /* Glitch text class - adapted from CodePen */
+    .glitch-text {
+      position: relative;
+      font-size: 1.2rem; /* Blocky, raw */
+      color: var(--fg);
+      animation: glitch 4s infinite alternate;
+      display: block;
+      margin: 0.5rem 0;
+    }
+
+    .glitch-text::before,
+    .glitch-text::after {
+      content: attr(data-text);
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--bg);
+      overflow: hidden;
+    }
+
+    .glitch-text::before {
+      left: -2px;
+      text-shadow: -2px 0 #ff00ff; /* Magenta for glitch artifact */
+      animation: noise-1 2s infinite linear alternate-reverse;
+    }
+
+    .glitch-text::after {
+      left: 2px;
+      text-shadow: 2px 0 #00ffff; /* Cyan for glitch artifact */
+      animation: noise-2 2.5s infinite linear alternate;
+    }
+
+    /* Keyframes for glitch distortion */
+    @keyframes glitch {
+      0%, 4%, 8%, 12%, 16%, 20%, 100% { transform: translate(0); }
+      2%  { transform: translate(-2px, 2px) skewX(20deg); }
+      6%  { transform: translate(2px, -2px) skewX(-20deg); }
+      10% { transform: translate(-1px, 1px) rotateX(5deg); }
+      14% { transform: translate(1px, -1px) rotateX(-5deg); }
+      18% { transform: translate(-3px, 3px) skewX(30deg); }
+    }
+
+    /* Hardcoded noise keyframes with varied clips (approx random) */
+    @keyframes noise-1 {
+      0% { clip-path: inset(5% 0 80% 0); }
+      10% { clip-path: inset(20% 0 10% 0); }
+      20% { clip-path: inset(40% 0 30% 0); }
+      30% { clip-path: inset(10% 0 50% 0); }
+      40% { clip-path: inset(60% 0 5% 0); }
+      50% { clip-path: inset(15% 0 70% 0); }
+      60% { clip-path: inset(80% 0 10% 0); }
+      70% { clip-path: inset(25% 0 40% 0); }
+      80% { clip-path: inset(50% 0 20% 0); }
+      90% { clip-path: inset(70% 0 15% 0); }
+      100% { clip-path: inset(0% 0 90% 0); }
+    }
+
+    @keyframes noise-2 {
+      0% { clip-path: inset(15% 0 70% 0); }
+      10% { clip-path: inset(40% 0 20% 0); }
+      20% { clip-path: inset(60% 0 10% 0); }
+      30% { clip-path: inset(5% 0 80% 0); }
+      40% { clip-path: inset(25% 0 50% 0); }
+      50% { clip-path: inset(80% 0 5% 0); }
+      60% { clip-path: inset(10% 0 60% 0); }
+      70% { clip-path: inset(50% 0 30% 0); }
+      80% { clip-path: inset(70% 0 15% 0); }
+      90% { clip-path: inset(20% 0 40% 0); }
+      100% { clip-path: inset(30% 0 20% 0); }
+    }
+
+    /* Existing ASCII header - add glitch class for consistency */
+    .ascii-header {
+      white-space: pre;
+      font-size: 0.75rem; /* Adjusted for raw feel */
+      line-height: 1.05;
+      color: var(--highlight);
+      text-align: center;
+      position: relative;
+      animation: glitch 4s infinite alternate; /* Apply same glitch */
+    }
+
+    .ascii-header::before,
+    .ascii-header::after {
+      content: attr(data-text);
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      background: var(--bg);
+      color: var(--fg);
+      overflow: hidden;
+    }
+
+    .ascii-header::before {
+      left: -2px;
+      text-shadow: -2px 0 #ff00ff;
+      animation: noise-1 2s infinite linear alternate-reverse;
+    }
+
+    .ascii-header::after {
+      left: 2px;
+      text-shadow: 2px 0 #00ffff;
+      animation: noise-2 2.5s infinite linear alternate;
+    }
+
+/* Sections and other styles - made more raw */
+    .section {
+      margin: 0.8rem 0; /* Tighter */
+      display: none;
+    }
+    .section.active {
+      display: block;
+      animation: none; /* Remove fade for brutalist instant */
+    }
+
+    .prompt {
+      color: var(--prompt);
+      margin: 0.6rem 0 0.3rem;
+    }
+
+    .output {
+      margin-left: 1.2rem; /* Less indent */
+      white-space: pre-wrap;
+    }
+
+    a {
+      color: #ffffff; /* White links for raw */
+      text-decoration: underline; /* Always underline for brutalism */
+    }
+    a:hover { color: #dddddd; }
+
+    .progress-bg {
+      background: #000;
+      height: 12px;
+      border: 2px solid #555;
+      margin: 0.3rem 0 0.9rem;
+      overflow: hidden;
+    }
+
+    .progress-fill { background: #fff; height: 100%; }
+
+/* Bottom menu - more raw, no glow/backdrop */
+    .bottom-menu {
+      position: fixed;
+      bottom: 0;
+      left: 0; right: 0;
+      background: #000000;
+      border-top: 2px solid #555555; /* Thick border */
+      padding: 0.5rem 0.8rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem 1.5rem;
+      justify-content: center;
+      font-size: 0.95rem;
+      z-index: 9999;
+    }
+    
+    .menu-item {
+      color: var(--fg-dim);
+      cursor: pointer;
+    }
+
+    .menu-item:hover,
+    .menu-item.active { color: #fff; }
+
+    .blink-cursor {
+      width: 9px;
+      height: 1.2em;
+      background: #fff;
+      animation: blink 0.8s step-end infinite;
+      margin-left: 0.4rem;
+    }
+
+    @media (max-width: 640px) {
+      body { font-size: 13px; padding: 0.3rem 0.4rem 5.5rem; }
+      .ascii-header { font-size: 0.62rem; }
+      .glitch-text { font-size: 0.95rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="boot">
+    [RAW BOOT] PortfolioOS v25-raw — Feb 11 2026
+    Memory ................................... OK
+    CRT void ................................. OK
+    Brutalist matrix ......................... OK
+    Enter the void, esc0be@local
+  </div>
+
+  <canvas id="bg"></canvas>
+
+  <!-- Boot window overlay -->
+  <div class="boot-window" id="boot">
+    <div class="window">
+      <div class="titlebar">
+        <span>PortfolioOS v25 – booting...</span>
+        <div class="close-btn" id="close-boot"></div>
+      </div>
+      <div class="content" id="boot-content"></div>
+    </div>
+  </div>
+
+  <div class="header-container">
+    <div class="glitch-text" data-text="ANTI-DESIGN">ANTI-DESIGN</div>
+    <div class="ascii-header" data-text="
+                              █████    █████             
+                            ███▒▒▒███ ▒▒███              
+  ██████   █████   ██████  ███   ▒▒███ ▒███████   ██████ 
+ ███▒▒███ ███▒▒   ███▒▒███▒███    ▒███ ▒███▒▒███ ███▒▒███
+▒███████ ▒▒█████ ▒███ ▒▒▒ ▒███    ▒███ ▒███ ▒███▒███████ 
+▒███▒▒▒   ▒▒▒▒███▒███  ███▒▒███   ███  ▒███ ▒███▒███▒▒▒  
+▒▒██████  ██████ ▒▒██████  ▒▒▒█████▒   ████████ ▒▒██████ 
+ ▒▒▒▒▒▒  ▒▒▒▒▒▒   ▒▒▒▒▒▒     ▒▒▒▒▒▒   ▒▒▒▒▒▒▒▒   ▒▒▒▒▒▒  
+                                                         
+    ">
+                                  █████    █████             
+                            ███▒▒▒███ ▒▒███              
+  ██████   █████   ██████  ███   ▒▒███ ▒███████   ██████ 
+ ███▒▒███ ███▒▒   ███▒▒███▒███    ▒███ ▒███▒▒███ ███▒▒███
+▒███████ ▒▒█████ ▒███ ▒▒▒ ▒███    ▒███ ▒███ ▒███▒███████ 
+▒███▒▒▒   ▒▒▒▒███▒███  ███▒▒███   ███  ▒███ ▒███▒███▒▒▒  
+▒▒██████  ██████ ▒▒██████  ▒▒▒█████▒   ████████ ▒▒██████ 
+ ▒▒▒▒▒▒  ▒▒▒▒▒▒   ▒▒▒▒▒▒     ▒▒▒▒▒▒   ▒▒▒▒▒▒▒▒   ▒▒▒▒▒▒  
+                                                                                                            
+    </div>
+    <div class="glitch-text" data-text="DIGITAL TRASH">DIGITAL TRASH</div>
+  </div>
+
+  <div id="help" class="section active">
+    <div class="prompt">guest@void:~$ help</div>
+    <div class="output">
+Commands (type or click):
+
+  help       – this screen
+  about      – identity dump
+  skills     – broken tools
+  projects   – digital debris
+  experience – survival log
+  education  – institutional scars
+  contact    – attempt connection
+  clear      – wipe screen
+
+No polish. No mercy.
+    </div>
+  </div>
+
+  <div id="about" class="section">
+    <div class="prompt">guest@void:~$ about</div>
+    <div class="output">
+esc0be — minor purveyor in digital sewer.
+Rejects clean design. Embraces entropy, bad kerning, visual noise.
+Purpose: turn sensinble images into painful experiences.
+Motto: if it hurts to look at, it's probably art.
+Currently decaying at terminal speed.
+    </div>
+  </div>
+
+  <div id="skills" class="section">
+    <div class="prompt">guest@void:~$ skills</div>
+    <div class="output">
+Proficiency levels (damaged talents):
+
+Pretending this is all intentional     [█████████████████████░]  ~97%
+Bad kerning & painful typography       [███████████████████░░░]  ~91%
+Visual violence & CRT abuse            [████████████████████░░]  ~95%
+Turning elegant designs into eyesores  [██████████████████░░░░]  ~88%
+ASCII crimes & terminal vandalism      [█████████████████████░]  ~99%
+Making websites feel physically ill    [██████████████████████]  100%
+Actually writing maintainable code     [███░░░░░░░░░░░░░░░░░░░]   14%
+Remembering what I was working on      [████░░░░░░░░░░░░░░░░░░]   19%
+Having normal taste                    [░░░░░░░░░░░░░░░░░░░░░░]    0%
+    </div>
+  </div>
+
+  <div id="projects" class="section">
+    <div class="prompt">guest@void:~$ projects</div>
+    <div class="output">
+• this-terminal-page         – you're staring at it
+• glitch-cms                 – markdown rendered through epilepsy
+• 404-as-art                 – 1000 broken links gallery
+• pixel-trash-generator      – turn photos into visual garbage
+• retro-bbs-clone            – nostalgia poison
+Most buried at github.com/esc0be
+    </div>
+  </div>
+
+  <div id="experience" class="section">
+    <div class="prompt">guest@void:~$ experience</div>
+    <div class="output">
+2024–present   Digital Vandal @ self
+               – destroying user experience daily
+
+2022–2024      Frontend Janitor @ FailedStartup Inc.
+               – kept site alive long enough to get acquired & gutted
+
+2019–2022      Chaos Intern @ Agency of Pain
+               – learned that clients hate beauty
+    </div>
+  </div>
+
+  <div id="education" class="section">
+    <div class="prompt">guest@void:~$ education</div>
+    <div class="output">
+B.Sc. Something Computer – University of Debt 2017–2020
+Dropped out mentally in year 2.
+
+Self-taught:
+• breaking things
+• regretting nothing
+• font kerning warfare
+• CRT simulation crimes
+    </div>
+  </div>
+
+  <div id="contact" class="section">
+    <div class="prompt">guest@void:~$ contact</div>
+    <div class="output">
+email     → trash@esc0be.dev
+github    → github.com/esc0be
+x / ig    → @esc0be
+behance   → escobart   (only real way)
+Don't expect reply.
+    </div>
+  </div>
+
+  <nav class="bottom-menu">
+    <div class="menu-item active" data-cmd="help">help</div>
+    <div class="menu-item" data-cmd="about">about</div>
+    <div class="menu-item" data-cmd="skills">skills</div>
+    <div class="menu-item" data-cmd="projects">projects</div>
+    <div class="menu-item" data-cmd="experience">experience</div>
+    <div class="menu-item" data-cmd="education">education</div>
+    <div class="menu-item" data-cmd="contact">contact</div>
+    <div class="menu-item" data-cmd="clear">clear</div>
+    <div class="blink-cursor"></div>
+  </nav>
+
+  <script>
+    // Background: subtle falling ASCII rain
+    const canvas = document.getElementById('bg');
+    const ctx = canvas.getContext('2d');
+    let width, height;
+
+    function resize() {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    const chars = '01+-*/=><[]{}()\\|esc0beTRASHANTI█▓▒░■□▢◦●○◉◯★☆♠♣♥♦';
+    const fontSize = 14;
+    const columns = Math.floor(width / fontSize) + 1;
+    const drops = new Array(columns).fill(1);
+
+    function draw() {
+      ctx.fillStyle = 'rgba(0,0,0,0.05)';
+      ctx.fillRect(0, 0, width, height);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `${fontSize}px 'VCR OSD Mono', monospace`;
+
+      for (let i = 0; i < drops.length; i++) {
+        if (Math.random() > 0.975) {
+          const text = chars[Math.floor(Math.random() * chars.length)];
+          const x = i * fontSize;
+          const y = drops[i] * fontSize;
+          ctx.fillText(text, x, y);
+
+          if (y > height && Math.random() > 0.975) drops[i] = 0;
+          drops[i]++;
+        }
+      }
+      requestAnimationFrame(draw);
+    }
+    draw();
+
+    // Boot sequence
+    const bootEl = document.getElementById('boot-content');
+    const bootWindow = document.getElementById('boot');
+    const lines = [
+      "[VOID KERNEL] Loading anti-design modules...",
+      "Memory check: corrupted (good)",
+      "CRT emulation: flickering intentionally",
+      "Injecting digital trash... 69%",
+      "Esc0be identity verified: reject modernity",
+      "ANTI-DESIGN protocol active",
+      "DIGITAL TRASH firewall: disabled",
+      "Booting into entropy... [OK]",
+      "",
+      "Welcome to the sewer.",
+      "Press × or wait 6s..."
+    ];
+
+    let i = 0, char = 0;
+    function type() {
+      if (i < lines.length) {
+        if (char <= lines[i].length) {
+          bootEl.textContent += lines[i][char] || '';
+          char++;
+          setTimeout(type, 35 + Math.random()*30);
+        } else {
+          bootEl.textContent += '\n';
+          i++; char = 0;
+          setTimeout(type, 400);
+        }
+      } else {
+        setTimeout(() => bootWindow.style.opacity = '0', 1200);
+        setTimeout(() => bootWindow.style.display = 'none', 2000);
+      }
+    }
+    type();
+
+    document.getElementById('close-boot').onclick = () => {
+      bootWindow.style.opacity = '0';
+      setTimeout(() => bootWindow.style.display = 'none', 800);
+    };
+
+    // Menu logic
+    const sections = document.querySelectorAll('.section');
+    const menuItems = document.querySelectorAll('.menu-item');
+
+    function showSection(cmd) {
+      sections.forEach(s => s.classList.remove('active'));
+      menuItems.forEach(m => m.classList.remove('active'));
+      const target = document.getElementById(cmd);
+      if (target) {
+        target.classList.add('active');
+        document.querySelector(`[data-cmd="${cmd}"]`)?.classList.add('active');
+      }
+      if (cmd === 'clear') showSection('help');
+    }
+
+    menuItems.forEach(item => {
+      item.addEventListener('click', () => showSection(item.dataset.cmd));
+    });
+
+    showSection('help');
+
+    let buffer = '';
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        const cmd = buffer.trim().toLowerCase();
+        if (['help','about','skills','projects','experience','education','contact','clear'].includes(cmd)) {
+          showSection(cmd);
+        }
+        buffer = '';
+      } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+        buffer += e.key;
+      } else if (e.key === 'Backspace') {
+        buffer = buffer.slice(0, -1);
+      }
+    });
+  </script>
+
+</body>
+</html>
